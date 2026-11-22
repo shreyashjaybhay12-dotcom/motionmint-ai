@@ -66,9 +66,12 @@ label{display:block;color:var(--muted);font-size:12px;margin:9px 0 5px}
  <div class="small">Runs in Chrome with internet access to load the free Three.js library. No subscription or paid generation API is used.</div>
 </aside>
 </main>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
 const host=document.getElementById('view'), statusEl=document.getElementById('status');
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x9bbbd0);
@@ -152,5 +155,15 @@ document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const type=b.d
 document.getElementById('save').onclick=()=>{const data={app:'MotionMint AI',version:1,prompt:document.getElementById('prompt').value,objects:world.children.map((o,i)=>({index:i,type:o.type,position:o.position.toArray(),scale:o.scale.toArray()}))};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});download(blob,'motionmint-scene.json');statusEl.textContent='Scene description saved'};
 document.getElementById('shot').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='motionmint-preview.png';a.click();statusEl.textContent='Screenshot saved'};
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+</script>
+<script>
+window.addEventListener('error', e => {
+ const el=document.getElementById('status');
+ if(el) el.textContent='3D error: '+(e.message||'Check internet connection and reload');
+});
+window.addEventListener('unhandledrejection', e => {
+ const el=document.getElementById('status');
+ if(el) el.textContent='3D loading error: '+(e.reason?.message||'Check internet connection and reload');
+});
 </script>
 </body></html>
