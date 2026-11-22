@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>MotionMint AI — Free 3D Explainer Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#10151d;--panel:#192330;--line:#2b3a4c;--text:#edf3fa;--muted:#9aabba;--accent:#68d5bd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,Arial;overflow:hidden}
+header{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--line);background:#121b26}
+.brand{font-weight:800;letter-spacing:.3px}.brand span{color:var(--accent)}.tag{font-size:11px;color:var(--muted)}
+main{height:calc(100dvh - 52px);display:grid;grid-template-columns:minmax(0,1fr) 290px;min-height:0}
+#view{position:relative;min-width:0;min-height:0;background:#9bbbd0}canvas{display:block;width:100%;height:100%;touch-action:none}
+.hint{position:absolute;left:10px;top:10px;background:#101923d9;border:1px solid #526477;border-radius:9px;padding:8px 10px;color:#d9e5ef;font-size:11px;max-width:80%;pointer-events:none}
+#tools{background:var(--panel);border-left:1px solid var(--line);padding:12px;overflow:auto}
+.section{padding:0 0 12px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+h3{font-size:13px;margin:2px 0 9px;color:#dbe8f2}button,select,input,textarea{font:inherit}
+button{background:#26384a;color:var(--text);border:1px solid #3a5067;border-radius:9px;padding:9px 10px;cursor:pointer}
+button.primary{background:#176b61;border-color:#258e7e}.btnrow{display:flex;gap:7px;flex-wrap:wrap}
+button:active{transform:scale(.98)}button:disabled{opacity:.5}
+textarea,input[type=text],select{width:100%;background:#101923;color:var(--text);border:1px solid #34485d;border-radius:8px;padding:9px}
+textarea{min-height:82px;resize:vertical}
+label{display:block;color:var(--muted);font-size:12px;margin:9px 0 5px}
+.small{font-size:11px;color:var(--muted);line-height:1.45}
+#status{color:var(--accent);font-size:12px;margin-top:8px;min-height:17px}
+#timeline{height:7px;background:#304253;border-radius:10px;margin-top:8px;overflow:hidden}#progress{height:100%;width:0;background:var(--accent)}
+.preset{font-size:11px;padding:7px}
+@media(max-width:720px){main{grid-template-columns:1fr;grid-template-rows:minmax(240px,1fr) auto}#tools{border-left:0;border-top:1px solid var(--line);max-height:43dvh;padding:9px 11px}.section{margin-bottom:8px;padding-bottom:8px}header{height:48px}main{height:calc(100dvh - 48px)}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">MOTION<span>MINT</span> AI</div><div class="tag">FREE 3D EXPLAINER STUDIO · prototype 01</div></div><div class="tag">No paid API · No account required</div></header>
+<main>
+<section id="view"><div class="hint">Drag to orbit · pinch / scroll to zoom · use the scene controls to explore</div></section>
+<aside id="tools">
+ <div class="section">
+  <h3>1 · Describe your scene</h3>
+  <textarea id="prompt">Create an underground bunker beneath a house. Show the soil cutaway, a reinforced concrete shelter, and arrows showing downward ground pressure.</textarea>
+  <div class="btnrow" style="margin-top:7px"><button class="primary" id="build">Build scene</button><button id="example">Example prompt</button></div>
+  <div class="small" style="margin-top:6px">Free procedural builder: understands supported scene words and assembles editable 3D primitives. It is not a general-purpose AI model.</div>
+ </div>
+ <div class="section">
+  <h3>2 · Animation</h3>
+  <div class="btnrow"><button class="primary" id="play">▶ Play</button><button id="pause">Ⅱ Pause</button><button id="reset">Reset</button></div>
+  <label>Animation speed</label><input id="speed" type="range" min="0" max="200" value="100">
+  <label>Cutaway depth</label><input id="cut" type="range" min="0" max="100" value="100">
+  <div class="btnrow" style="margin-top:8px"><button id="toggleArrows">Hide arrows</button><button id="toggleLabels">Hide labels</button></div>
+  <div id="timeline"><div id="progress"></div></div>
+  <div id="status">Ready · Default bunker scene loaded</div>
+ </div>
+ <div class="section">
+  <h3>3 · Camera</h3>
+  <select id="camera"><option value="front">Front cutaway</option><option value="top">Top view</option><option value="side">Side view</option><option value="perspective">Cinematic view</option></select>
+  <label>Camera zoom</label><input id="zoom" type="range" min="8" max="35" value="20">
+ </div>
+ <div class="section">
+  <h3>4 · Add objects</h3>
+  <div class="btnrow"><button class="preset" data-add="tree">+ Tree</button><button class="preset" data-add="house">+ House</button><button class="preset" data-add="tunnel">+ Tunnel</button><button class="preset" data-add="arrow">+ Arrow</button><button class="preset" data-add="label">+ Label</button></div>
+  <div class="small" style="margin-top:7px">Tap an object button to add it to the scene. Drag the view to inspect. Scene editing and custom object transforms are planned for later versions.</div>
+ </div>
+ <div class="section">
+  <h3>5 · Export</h3>
+  <div class="btnrow"><button id="save">Save scene JSON</button><button id="shot">Save screenshot</button></div>
+  <div class="small" style="margin-top:7px">This prototype saves scene descriptions and screenshots. MP4 rendering is a future milestone.</div>
+ </div>
+ <div class="small">Runs in Chrome with internet access to load the free Three.js library. No subscription or paid generation API is used.</div>
+</aside>
+</main>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+const host=document.getElementById('view'), statusEl=document.getElementById('status');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x9bbbd0);
+const camera=new THREE.PerspectiveCamera(42,1,.1,300); camera.position.set(14,11,20);
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.8)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; host.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,3,0); controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x67513c,2));
+const sun=new THREE.DirectionalLight(0xffffff,2.1); sun.position.set(-8,18,12); sun.castShadow=true; scene.add(sun);
+const mats={
+ grass:new THREE.MeshStandardMaterial({color:0x4d8b42,roughness:1}),
+ soil:new THREE.MeshStandardMaterial({color:0x74432c,roughness:1}),
+ soilDark:new THREE.MeshStandardMaterial({color:0x56301f,roughness:1}),
+ concrete:new THREE.MeshStandardMaterial({color:0xbfc4c6,roughness:.88}),
+ concreteDark:new THREE.MeshStandardMaterial({color:0x858e93,roughness:.9}),
+ house:new THREE.MeshStandardMaterial({color:0xe5e0d5,roughness:.9}),
+ roof:new THREE.MeshStandardMaterial({color:0x536575,roughness:.9}),
+ green:new THREE.MeshStandardMaterial({color:0x185b2d,roughness:1}),
+ glass:new THREE.MeshStandardMaterial({color:0x183047,roughness:.3}),
+ white:new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x333333}),
+ flower:new THREE.MeshStandardMaterial({color:0xe6a2c8})
+};
+const world=new THREE.Group(); scene.add(world);
+const animated=[]; let arrowsVisible=true,labelsVisible=true,playing=true,elapsed=0,cutAmount=1;
+function box(parent,x,y,z,w,h,d,material,cast=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;parent.add(m);return m}
+function sphere(parent,x,y,z,r,material,sx=1,sy=1,sz=1){const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;parent.add(m);return m}
+function label(text,x,y,z,size=0.55){const c=document.createElement('canvas'),ctx=c.getContext('2d');c.width=512;c.height=128;ctx.font='bold 68px Arial';ctx.textAlign='center';ctx.lineWidth=13;ctx.strokeStyle='#111820';ctx.strokeText(text,256,83);ctx.fillStyle='white';ctx.fillText(text,256,83);const tex=new THREE.CanvasTexture(c);const mesh=new THREE.Mesh(new THREE.PlaneGeometry(size*4,size),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));mesh.position.set(x,y,z);mesh.userData.isLabel=true;world.add(mesh);return mesh}
+function arrow(x,y,z,down=true,scale=1){const g=new THREE.Group();const dir=down?-1:1;const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.7*scale,10),mats.white);shaft.position.y=-.12*dir;const head=new THREE.Mesh(new THREE.ConeGeometry(.22*scale,.36*scale,12),mats.white);head.rotation.z=down?Math.PI:0;head.position.y=-.58*dir;g.add(shaft,head);g.position.set(x,y,z);g.userData.isArrow=true;world.add(g);animated.push({obj:g,kind:'arrow',base:y});return g}
+function tree(x,z){const g=new THREE.Group();const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16,.22,1.4,8),mats.soilDark);trunk.position.y=.7;g.add(trunk);const crown=new THREE.Mesh(new THREE.SphereGeometry(.9,16,12),mats.green);crown.position.y=1.9;crown.scale.set(1,1.2,1);g.add(crown);g.position.set(x,0,z);world.add(g);return g}
+function house(){const g=new THREE.Group();box(g,0,2.2,-5,7,4.4,4,mats.house);const roof=new THREE.Mesh(new THREE.ConeGeometry(5.2,2.5,4),mats.roof);roof.position.set(0,5.65,-5);roof.rotation.y=Math.PI/4;roof.scale.set(1,.65,.65);g.add(roof);for(const x of [-2,2]){box(g,x,2.8,-2.94,1.1,1.4,.08,mats.glass,false);box(g,x,2.8,-2.88,.08,1.5,.06,mats.house,false);box(g,x,2.8,-2.87,1.15,.07,.06,mats.house,false)}box(g,0,1.1,-2.94,1.3,2.2,.08,mats.roof,false);world.add(g);return g}
+function bunker(){const g=new THREE.Group();
+ // open-front concrete chamber and curved-ish roof represented by slab + side walls
+ box(g,0,-1.0,0,8,.45,7,mats.concrete);
+ box(g,-3.75,.75,0,.5,3,7,mats.concrete);
+ box(g,3.75,.75,0,.5,3,7,mats.concrete);
+ box(g,0,2.35,0,8,.5,7,mats.concrete);
+ box(g,0,2.65,0,8.3,.25,7.3,mats.concreteDark);
+ box(g,0,.1,-3.2,7.5,2.4,.3,mats.concreteDark);
+ // front cutaway floor and interior back
+ box(g,0,.25,3.35,7.4,.25,.3,mats.concrete);
+ world.add(g);return g}
+function clearWorld(){while(world.children.length){const o=world.children.pop();if(o.geometry)o.geometry.dispose();}animated.length=0}
+function build(prompt){
+ clearWorld(); const p=prompt.toLowerCase();
+ // soil volume and grass surface
+ box(world,0,-2.3,0,24,4.6,16,mats.soil,false);
+ box(world,0,.08,0,24,.22,16,mats.grass,false);
+ // exposed cutaway face edges
+ box(world,-12,-2.3,0,.25,4.6,16,mats.soilDark,false);box(world,12,-2.3,0,.25,4.6,16,mats.soilDark,false);
+ if(p.includes('house')||p.includes('home')||p.includes('bunker')||p.includes('shelter')) house();
+ if(p.includes('bunker')||p.includes('shelter')||p.includes('underground')||p.includes('tunnel')) bunker();
+ for(let i=0;i<7;i++)tree(-10+i*3.3,-6.3);
+ for(let i=0;i<6;i++)tree(-9+i*3.5,6.3);
+ if(p.includes('arrow')||p.includes('pressure')||p.includes('weight')||p.includes('down')||p.includes('bunker')||p.includes('shelter')) {
+  for(let x of [-2.8,0,2.8])arrow(x,5.2,0,true,1.1);
+  label(p.includes('pressure')?'GROUND PRESSURE':'DOWNWARD LOAD',0,4.45,4.2,.35);
+ }
+ if(p.includes('tunnel')){const tunnel=new THREE.Group();box(tunnel,0,-.4,0,3.5,.3,10,mats.concrete);box(tunnel,-1.6,.6,0,.3,2,10,mats.concrete);box(tunnel,1.6,.6,0,.3,2,10,mats.concrete);box(tunnel,0,1.65,0,3.5,.3,10,mats.concrete);tunnel.position.set(0,-1,0);world.add(tunnel)}
+ if(p.includes('road'))box(world,0,.22,0,22,.08,3,mats.concreteDark,false);
+ if(p.includes('bridge')){box(world,0,1,0,12,.35,3,mats.concrete);for(let x of [-5,-2,2,5])box(world,x,.3,0,.35,1.2,.35,mats.concreteDark)}
+ if(p.includes('car')||p.includes('vehicle')){const car=new THREE.Group();box(car,0,.7,0,2.7,.65,1.3,mats.roof);box(car,0,1.2,-.05,1.5,.55,1.1,mats.glass);for(let x of [-.85,.85])for(let z of [-.72,.72]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.32,.32,.18,16),mats.soilDark);w.rotation.x=Math.PI/2;w.position.set(x,.38,z);car.add(w)}car.position.set(-5,.2,4);world.add(car);animated.push({obj:car,kind:'car',base:car.position.x})}
+ statusEl.textContent='Scene built · '+world.children.length+' editable objects';
+}
+build(document.getElementById('prompt').value);
+function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}
+new ResizeObserver(resize).observe(host);resize();
+function animate(){requestAnimationFrame(animate);const dt=clock.getDelta();if(playing)elapsed+=dt*(Number(document.getElementById('speed').value)/100);controls.update();for(const a of animated){if(a.kind==='arrow'){a.obj.position.y=a.base+Math.sin(elapsed*2.2)*.12;a.obj.visible=arrowsVisible}else if(a.kind==='car'){a.obj.position.x=a.base+Math.sin(elapsed*.45)*1.5}}document.getElementById('progress').style.width=((elapsed%12)/12*100)+'%';renderer.render(scene,camera)}
+const clock=new THREE.Clock();animate();
+document.getElementById('build').onclick=()=>build(document.getElementById('prompt').value);
+document.getElementById('example').onclick=()=>{document.getElementById('prompt').value='Create a house above an underground bunker with a tunnel and arrows showing ground pressure';statusEl.textContent='Example prompt loaded · Tap Build scene'};
+document.getElementById('play').onclick=()=>{playing=true;statusEl.textContent='Animation playing'};
+document.getElementById('pause').onclick=()=>{playing=false;statusEl.textContent='Animation paused'};
+document.getElementById('reset').onclick=()=>{elapsed=0;camera.position.set(14,11,20);controls.target.set(0,3,0);controls.update();statusEl.textContent='View reset'};
+document.getElementById('cut').oninput=e=>{cutAmount=Number(e.target.value)/100;world.children.forEach(o=>{if(o.material===mats.soil||o.material===mats.soilDark)o.scale.y=.15+.85*cutAmount});statusEl.textContent='Cutaway depth adjusted'};
+document.getElementById('speed').oninput=()=>statusEl.textContent='Animation speed updated';
+document.getElementById('toggleArrows').onclick=e=>{arrowsVisible=!arrowsVisible;world.children.forEach(o=>{if(o.userData.isArrow)o.visible=arrowsVisible});e.target.textContent=arrowsVisible?'Hide arrows':'Show arrows'};
+document.getElementById('toggleLabels').onclick=e=>{labelsVisible=!labelsVisible;world.children.forEach(o=>{if(o.userData.isLabel)o.visible=labelsVisible});e.target.textContent=labelsVisible?'Hide labels':'Show labels'};
+document.getElementById('camera').onchange=e=>{const v=e.target.value;if(v==='top')camera.position.set(0,27,.01);if(v==='side')camera.position.set(25,5,0);if(v==='front')camera.position.set(14,11,20);if(v==='perspective')camera.position.set(17,14,18);controls.target.set(0,2,0);controls.update()};
+document.getElementById('zoom').oninput=e=>{const d=Number(e.target.value);camera.position.setLength(d)};
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const type=b.dataset.add;if(type==='tree')tree(0,3);if(type==='house')house();if(type==='tunnel'){document.getElementById('prompt').value+=' tunnel';build(document.getElementById('prompt').value)}if(type==='arrow')arrow(0,5,0,true,1.2);if(type==='label')label('NEW LABEL',0,5,3,.35);statusEl.textContent='Added '+type});
+document.getElementById('save').onclick=()=>{const data={app:'MotionMint AI',version:1,prompt:document.getElementById('prompt').value,objects:world.children.map((o,i)=>({index:i,type:o.type,position:o.position.toArray(),scale:o.scale.toArray()}))};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});download(blob,'motionmint-scene.json');statusEl.textContent='Scene description saved'};
+document.getElementById('shot').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='motionmint-preview.png';a.click();statusEl.textContent='Screenshot saved'};
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+</script>
+</body></html>
